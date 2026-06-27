@@ -1,7 +1,7 @@
 # Latam Economic Pulse API
 
-![CI](https://github.com/USUARIO/latam-economic-pulse/actions/workflows/ci.yml/badge.svg)
-![dbt docs](https://github.com/USUARIO/latam-economic-pulse/actions/workflows/dbt-docs.yml/badge.svg)
+![CI](https://github.com/Horaciomb/latam-economic-pulse/actions/workflows/ci.yml/badge.svg)
+![dbt docs](https://github.com/Horaciomb/latam-economic-pulse/actions/workflows/dbt-docs.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![dbt](https://img.shields.io/badge/dbt-core%201.9-orange)
 
@@ -13,7 +13,7 @@ Pipeline de datos que extrae indicadores económicos de toda Latinoamérica desd
 > Segundo proyecto de portafolio de Ingeniería de Datos. El foco es **dbt**: modelos
 > en capas (staging → marts), tests, docs públicas y lineage sobre un modelo dimensional.
 
-📊 **Documentación dbt (lineage + catálogo):** https://USUARIO.github.io/latam-economic-pulse/
+📊 **Documentación dbt (lineage + catálogo):** https://Horaciomb.github.io/latam-economic-pulse/
 
 ---
 
