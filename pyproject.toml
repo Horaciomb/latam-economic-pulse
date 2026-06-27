@@ -1,0 +1,28 @@
+[project]
+name = "latam-economic-pulse"
+version = "0.1.0"
+description = "Pipeline de indicadores económicos de Latinoamérica (World Bank API → PostgreSQL → dbt → FastAPI)."
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# dbt genera artefactos en target/ y dbt_packages/; no los lintamos.
+extend-exclude = ["dbt/target", "dbt/dbt_packages", "venv", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "W",   # pycodestyle warnings
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -1,0 +1,20 @@
+version: 2
+
+seeds:
+  - name: indicator_metadata
+    description: >
+      Metadata curada de los indicadores (unidad, categoría, descripción en
+      español). La World Bank API deja el campo `unit` casi siempre vacío, así
+      que se complementa aquí. Alimenta dim_indicator.
+    columns:
+      - name: indicator_code
+        description: Código del indicador World Bank (clave).
+        tests:
+          - not_null
+          - unique
+      - name: unit
+        description: Unidad de medida del indicador.
+      - name: category
+        description: Categoría temática.
+      - name: description_es
+        description: Descripción en español.

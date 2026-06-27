@@ -1,0 +1,5 @@
+indicator_code,unit,category,description_es
+NY.GDP.MKTP.CD,US$ corrientes,Cuentas nacionales,PIB a precios de mercado en dólares estadounidenses corrientes
+FP.CPI.TOTL.ZG,% anual,Precios,"Inflación medida por el índice de precios al consumidor, variación porcentual anual"
+SL.UEM.TOTL.ZS,% fuerza laboral,Empleo,Desempleo total como porcentaje de la fuerza laboral total
+NY.GDP.PCAP.CD,US$ corrientes,Cuentas nacionales,PIB per cápita en dólares estadounidenses corrientes

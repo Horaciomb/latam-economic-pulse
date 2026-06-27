@@ -1,0 +1,30 @@
+name: "latam_economic_pulse"
+version: "1.0.0"
+config-version: 2
+
+# Perfil definido en profiles.yml (lee credenciales de variables de entorno PG*).
+profile: "latam_economic_pulse"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Todos los modelos viven en el esquema `econ` (ver macros/generate_schema_name.sql).
+# staging => views (ligeras, siempre frescas); marts => tables (rápidas de leer).
+models:
+  latam_economic_pulse:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+
+# El seed de metadata de indicadores también va al esquema econ.
+seeds:
+  latam_economic_pulse:
+    +schema: econ

@@ -1,0 +1,40 @@
+name: Pipeline semanal (EL + dbt)
+
+on:
+  schedule:
+    # Lunes 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}  # permite ejecutarlo a mano
+
+jobs:
+  el-and-transform:
+    name: EL Python + dbt build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: EL — extraer y cargar crudo a econ_raw
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m src.el.pipeline
+
+      - name: Derivar variables PG* desde DATABASE_URL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/parse_database_url.py >> "$GITHUB_ENV"
+
+      - name: dbt deps
+        working-directory: dbt
+        run: dbt deps
+
+      - name: dbt build (transforma econ_raw -> econ + tests)
+        working-directory: dbt
+        run: dbt build

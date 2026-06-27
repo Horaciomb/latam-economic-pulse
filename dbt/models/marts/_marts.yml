@@ -1,0 +1,120 @@
+version: 2
+
+models:
+  - name: dim_country
+    description: >
+      Dimensión país (grano: un registro por ISO3). Enriquecida con región,
+      nivel de ingreso, capital y coordenadas desde el catálogo World Bank.
+      Sólo incluye países con al menos una observación.
+    columns:
+      - name: country_iso3
+        description: Clave primaria. Código ISO3 del país (ej. 'BOL').
+        tests:
+          - not_null
+          - unique
+      - name: country_name
+        description: Nombre del país.
+        tests:
+          - not_null
+      - name: iso2
+        description: Código ISO2 del país.
+      - name: region
+        description: Región World Bank (ej. 'Latin America & Caribbean').
+      - name: income_level
+        description: Nivel de ingreso (ej. 'Upper middle income').
+      - name: capital
+        description: Ciudad capital.
+      - name: longitude
+        description: Longitud de la capital.
+      - name: latitude
+        description: Latitud de la capital.
+
+  - name: dim_indicator
+    description: >
+      Dimensión indicador (grano: un registro por código). Combina el nombre
+      observado con la metadata curada del seed (unidad, categoría, descripción).
+    columns:
+      - name: indicator_code
+        description: Clave primaria. Código del indicador (ej. 'FP.CPI.TOTL.ZG').
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              values:
+                - NY.GDP.MKTP.CD
+                - FP.CPI.TOTL.ZG
+                - SL.UEM.TOTL.ZS
+                - NY.GDP.PCAP.CD
+      - name: indicator_name
+        description: Nombre legible del indicador.
+        tests:
+          - not_null
+      - name: unit
+        description: Unidad de medida (desde el seed de metadata).
+      - name: category
+        description: Categoría temática del indicador (desde el seed).
+      - name: description_es
+        description: Descripción en español del indicador (desde el seed).
+
+  - name: fct_indicators
+    description: >
+      Tabla de hechos de indicadores. Grano: país × indicador × año. Una fila por
+      observación real (sin nulos). FKs a dim_country y dim_indicator.
+    columns:
+      - name: indicator_key
+        description: Surrogate key estable (hash de país + indicador + año).
+        tests:
+          - not_null
+          - unique
+      - name: country_iso3
+        description: FK a dim_country.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_country')
+              field: country_iso3
+      - name: indicator_code
+        description: FK a dim_indicator.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_indicator')
+              field: indicator_code
+      - name: anio
+        description: Año de la observación.
+        tests:
+          - not_null
+      - name: valor
+        description: Valor numérico de la observación.
+        tests:
+          - not_null
+
+  - name: mart_latest_indicators
+    description: >
+      Último valor disponible por país × indicador. Optimiza la respuesta del
+      endpoint GET /latest. Grano: país × indicador (un registro, el más reciente).
+    columns:
+      - name: country_iso3
+        description: Código ISO3 del país (FK a dim_country).
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_country')
+              field: country_iso3
+      - name: indicator_code
+        description: Código del indicador (FK a dim_indicator).
+        tests:
+          - not_null
+      - name: anio
+        description: Año del último valor disponible.
+        tests:
+          - not_null
+      - name: valor
+        description: Último valor disponible del indicador.
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - country_iso3
+            - indicator_code

@@ -1,0 +1,26 @@
+# Perfil de conexión de dbt. SIN credenciales hardcodeadas: todo viene de
+# variables de entorno.
+#
+# dbt-postgres requiere campos discretos (no acepta una URL). Para mantener
+# DATABASE_URL como única fuente de verdad, deriva las PG* antes de correr dbt:
+#
+#   eval "$(python scripts/parse_database_url.py --export)"   # local
+#   python scripts/parse_database_url.py >> "$GITHUB_ENV"      # CI
+#
+# Nota Supabase: usar la conexión DIRECTA o el pooler en modo session (5432),
+# NO el transaction pooler (6543): dbt necesita features de sesión.
+
+latam_economic_pulse:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST') }}"
+      port: "{{ env_var('PGPORT', '5432') | int }}"
+      user: "{{ env_var('PGUSER') }}"
+      pass: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE', 'postgres') }}"
+      schema: econ
+      sslmode: "{{ env_var('PGSSLMODE', 'require') }}"
+      threads: 4
+      keepalives_idle: 0

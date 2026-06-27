@@ -1,0 +1,100 @@
+version: 2
+
+sources:
+  - name: econ_raw
+    description: >
+      Landing zone cargada por el EL de Python (requests + pandas) desde la
+      World Bank Indicators API v2. Datos crudos, sin transformar. La limpieza
+      ocurre en las capas de dbt.
+    schema: econ_raw
+    tables:
+      - name: wb_observations
+        description: >
+          Observaciones crudas de indicadores, grano país × indicador × año.
+          Incluye filas con valor nulo (World Bank deja huecos); el descarte se
+          hace en stg_wb_observations.
+        columns:
+          - name: country_iso3
+            description: Código ISO3 del país (ej. 'BOL').
+          - name: country_name
+            description: Nombre del país según la API.
+          - name: indicator_code
+            description: Código del indicador World Bank (ej. 'NY.GDP.MKTP.CD').
+          - name: indicator_name
+            description: Nombre legible del indicador.
+          - name: anio
+            description: Año de la observación.
+          - name: valor
+            description: Valor del indicador; puede ser nulo.
+          - name: ingested_at
+            description: Timestamp de carga del registro.
+      - name: wb_countries
+        description: >
+          Catálogo crudo de países de la región LCN (Latin America & Caribbean),
+          con región, nivel de ingreso y geo. Grano: un registro por ISO3.
+        columns:
+          - name: country_iso3
+            description: Código ISO3 del país.
+          - name: iso2
+            description: Código ISO2 del país.
+          - name: name
+            description: Nombre del país.
+          - name: region
+            description: Región World Bank (normalizada, sin espacios).
+          - name: income_level
+            description: Nivel de ingreso (ej. 'Upper middle income').
+          - name: capital
+            description: Ciudad capital.
+          - name: longitude
+            description: Longitud de la capital.
+          - name: latitude
+            description: Latitud de la capital.
+          - name: ingested_at
+            description: Timestamp de carga del registro.
+
+models:
+  - name: stg_wb_observations
+    description: >
+      Observaciones limpias de indicadores. Castea tipos, normaliza texto y
+      DESCARTA filas con valor nulo (decisión de modelado: las series de la API
+      tienen huecos y la capa de hechos sólo debe contener observaciones reales).
+    columns:
+      - name: country_iso3
+        description: Código ISO3 en mayúsculas (FK a dim_country).
+        tests:
+          - not_null
+      - name: indicator_code
+        description: Código del indicador.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - NY.GDP.MKTP.CD
+                - FP.CPI.TOTL.ZG
+                - SL.UEM.TOTL.ZS
+                - NY.GDP.PCAP.CD
+      - name: indicator_name
+        description: Nombre legible del indicador.
+      - name: anio
+        description: Año de la observación (entero).
+        tests:
+          - not_null
+      - name: valor
+        description: Valor numérico de la observación (no nulo tras el filtro).
+        tests:
+          - not_null
+
+  - name: stg_wb_countries
+    description: >
+      Catálogo de países limpio (región, nivel de ingreso, capital, geo).
+      Fuente de enriquecimiento de dim_country.
+    columns:
+      - name: country_iso3
+        description: Código ISO3 en mayúsculas (clave del país).
+        tests:
+          - not_null
+          - unique
+      - name: region
+        description: Región World Bank normalizada.
+      - name: income_level
+        description: Nivel de ingreso del país.
