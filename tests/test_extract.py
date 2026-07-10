@@ -185,8 +185,8 @@ def test_retry_then_success(monkeypatch):
 
     assert len(observations) == 1
     assert session.get.call_count == 3
-    # Backoff exponencial: 0.5, luego 1.0.
-    assert sleeps == [0.5, 1.0]
+    # Backoff exponencial: 1.0, luego 2.0.
+    assert sleeps == [1.0, 2.0]
 
 
 def test_retry_exhausted_raises(monkeypatch):

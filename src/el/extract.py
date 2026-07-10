@@ -35,12 +35,16 @@ DEFAULT_INDICATORS: tuple[str, ...] = (
 
 DEFAULT_DATE_RANGE = "2010:2024"
 
-# Cuántos países ISO3 agrupar por request (la URL se separa con ';').
-_COUNTRY_CHUNK = 30
+# Cuántos países ISO3 agrupar por request (la URL se separa con ';'). Un chunk
+# más chico = requests más livianos = menos chance de timeout con la API lenta.
+_COUNTRY_CHUNK = 10
 
-# Reintentos.
+# Reintentos y timeout. La World Bank API puede tardar >30s en requests con
+# varios países × indicadores × años (observado en producción: timeouts
+# consistentes a 30s incluso para /country solo). 60s da margen razonable.
+_REQUEST_TIMEOUT = 60
 _MAX_RETRIES = 3
-_BACKOFF_BASE = 0.5  # segundos; backoff exponencial: 0.5, 1.0, 2.0...
+_BACKOFF_BASE = 1.0  # segundos; backoff exponencial: 1.0, 2.0, 4.0...
 _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
@@ -75,7 +79,7 @@ def _request_with_retry(
 
     for attempt in range(1, _MAX_RETRIES + 1):
         try:
-            response = session.get(url, params=merged, timeout=30)
+            response = session.get(url, params=merged, timeout=_REQUEST_TIMEOUT)
             if response.status_code in _RETRY_STATUS:
                 raise requests.HTTPError(
                     f"status {response.status_code}", response=response
