@@ -13,6 +13,7 @@ Pipeline de datos que extrae indicadores económicos de toda Latinoamérica desd
 > Segundo proyecto de portafolio de Ingeniería de Datos. El foco es **dbt**: modelos
 > en capas (staging → marts), tests, docs públicas y lineage sobre un modelo dimensional.
 
+🚀 **API en vivo:** https://latam-economic-pulse-api.onrender.com ([Swagger](https://latam-economic-pulse-api.onrender.com/docs))
 📊 **Documentación dbt (lineage + catálogo):** https://Horaciomb.github.io/latam-economic-pulse/
 
 ---
