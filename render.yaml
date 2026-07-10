@@ -1,0 +1,27 @@
+# Render Blueprint — despliegue del API (FastAPI) en el plan free.
+# Uso: en el dashboard de Render, "New +" -> "Blueprint" -> conectar este repo.
+# Render detecta este archivo automáticamente. DATABASE_URL queda marcada
+# `sync: false`: Render la pide en el momento de crear el Blueprint y NUNCA
+# se commitea (secreto real, ver .env.example).
+#
+# La transformación (dbt) y la carga (EL) NO corren acá — son responsabilidad
+# de los workflows de GitHub Actions (pipeline.yml). Este servicio sólo LEE
+# de los marts en el esquema `econ` para servir el API.
+
+services:
+  - type: web
+    name: latam-economic-pulse-api
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.15
+      - key: DATABASE_URL
+        sync: false
+      - key: DBT_DOCS_URL
+        value: https://horaciomb.github.io/latam-economic-pulse/

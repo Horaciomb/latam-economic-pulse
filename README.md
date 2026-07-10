@@ -128,6 +128,24 @@ uvicorn src.api.main:app --reload
 # Swagger en http://localhost:8000/docs
 ```
 
+### 8. Desplegar el API en Render (free tier)
+
+El repo incluye un [Blueprint](render.yaml) (`render.yaml`) que Render detecta
+automáticamente — no hace falta configurar build/start command a mano.
+
+1. Entrar a [Render](https://dashboard.render.com/) → **New +** → **Blueprint**.
+2. Conectar el repo `Horaciomb/latam-economic-pulse`, rama `main`.
+3. Render lee `render.yaml` y muestra el servicio `latam-economic-pulse-api`.
+   Al pedir la variable `DATABASE_URL` (marcada como secreto, no está en el
+   repo), pegar la connection string real (la del pooler Supabase, puerto 5432).
+4. **Apply** → Render instala `requirements.txt` y arranca con
+   `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`.
+5. Verificar `https://<tu-servicio>.onrender.com/health` una vez desplegado.
+
+> Nota: el plan free de Render duerme el servicio tras 15 min de inactividad;
+> el primer request tras un tiempo de inactividad puede tardar ~30-50s en
+> responder (cold start).
+
 ---
 
 ## Tests y calidad
