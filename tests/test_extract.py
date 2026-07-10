@@ -122,8 +122,9 @@ def test_fetch_observations_single_page():
     assert session.get.call_count == 1
 
 
-def test_fetch_observations_paginates_until_last_page():
+def test_fetch_observations_paginates_until_last_page(monkeypatch):
     """Itera páginas hasta page == pages y concatena resultados."""
+    monkeypatch.setattr(extract.time, "sleep", lambda s: None)
     page1 = [
         {"page": 1, "pages": 2, "per_page": 1, "total": 2},
         [_obs("BOL", "2023", 1.0)],
@@ -165,6 +166,32 @@ def test_fetch_observations_handles_null_data_element():
     observations = fetch_observations(["ATG"], session=session)
 
     assert observations == []
+
+
+def test_fetch_observations_chunk_failure_does_not_abort_pipeline(monkeypatch, caplog):
+    """Un chunk que agota reintentos se omite (WARNING) sin tumbar el resto."""
+    monkeypatch.setattr(extract.time, "sleep", lambda s: None)
+    # 6 países con _COUNTRY_CHUNK=5 -> 2 chunks: [ARG,BOL,BRA,CHL,COL] y [PER].
+    countries = ["ARG", "BOL", "BRA", "CHL", "COL", "PER"]
+    ok_page = [
+        {"page": 1, "pages": 1, "per_page": 1000, "total": 1},
+        [_obs("PER", "2023", 1.0)],
+    ]
+    session = _session_returning(
+        _make_response(None, status_code=503),  # chunk 1, intento 1
+        _make_response(None, status_code=503),  # chunk 1, intento 2
+        _make_response(None, status_code=503),  # chunk 1, intento 3 -> agota
+        _make_response(ok_page, status_code=200),  # chunk 2, éxito
+    )
+
+    with caplog.at_level("WARNING"):
+        observations = fetch_observations(countries, session=session)
+
+    # El chunk 2 se cargó igual; el chunk 1 se omitió sin lanzar excepción.
+    assert len(observations) == 1
+    assert observations[0].country_iso3 == "PER"
+    assert session.get.call_count == 4
+    assert any("omitido tras agotar reintentos" in r.message for r in caplog.records)
 
 
 # --- Reintentos / backoff -------------------------------------------------------

@@ -37,7 +37,7 @@ DEFAULT_DATE_RANGE = "2010:2024"
 
 # Cuántos países ISO3 agrupar por request (la URL se separa con ';'). Un chunk
 # más chico = requests más livianos = menos chance de timeout con la API lenta.
-_COUNTRY_CHUNK = 10
+_COUNTRY_CHUNK = 5
 
 # Reintentos y timeout. La World Bank API puede tardar >30s en requests con
 # varios países × indicadores × años (observado en producción: timeouts
@@ -46,6 +46,10 @@ _REQUEST_TIMEOUT = 60
 _MAX_RETRIES = 3
 _BACKOFF_BASE = 1.0  # segundos; backoff exponencial: 1.0, 2.0, 4.0...
 _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+
+# Pausa entre requests sucesivos (distintos lotes de países o distintas
+# páginas) para no saturar una API que ya está respondiendo lenta.
+_INTER_REQUEST_DELAY = 0.5
 
 
 class WorldBankAPIError(RuntimeError):
@@ -196,11 +200,19 @@ def fetch_observations(
     date_range: str = DEFAULT_DATE_RANGE,
     session: requests.Session | None = None,
 ) -> list[WBObservation]:
-    """Obtiene TODAS las observaciones (manejando paginación y chunking).
+    """Obtiene TODAS las observaciones (manejando paginación, chunking y fallos parciales).
 
-    Itera las páginas de cada chunk de países hasta que ``page == pages``. Se
-    landea todo crudo, incluidas observaciones con ``valor`` nulo (el filtrado
-    es trabajo de dbt).
+    Itera las páginas de cada chunk de países hasta que ``page == pages``, con
+    una pausa de ``_INTER_REQUEST_DELAY`` segundos entre requests sucesivos
+    para no saturar la API. Se landea todo crudo, incluidas observaciones con
+    ``valor`` nulo (el filtrado es trabajo de dbt).
+
+    Decisión de resiliencia: si un chunk de países agota sus reintentos, se
+    registra un WARNING y se lo omite, en vez de abortar todo el pipeline. La
+    carga es idempotente (UPSERT sobre country_iso3+indicator_code+anio), así
+    que un chunk omitido hoy se completa solo en la próxima corrida — preferir
+    datos parciales de la mayoría de países a perder la corrida entera por un
+    lote problemático.
 
     Args:
         iso3_codes: Países a consultar (ISO3).
@@ -209,25 +221,49 @@ def fetch_observations(
         session: Sesión de ``requests`` opcional (para tests).
 
     Returns:
-        Todas las observaciones de todos los chunks y páginas.
+        Las observaciones de los chunks que se completaron con éxito.
     """
     session = session or requests.Session()
     indicators = list(indicator_codes)
     all_obs: list[WBObservation] = []
+    chunks = _chunks(iso3_codes, _COUNTRY_CHUNK)
+    failed_chunks: list[list[str]] = []
 
-    for chunk in _chunks(iso3_codes, _COUNTRY_CHUNK):
-        page = 1
-        while True:
-            meta, observations = fetch_indicator_page(
-                session, chunk, indicators, date_range, page
+    for chunk_index, chunk in enumerate(chunks):
+        if chunk_index > 0:
+            time.sleep(_INTER_REQUEST_DELAY)
+        try:
+            page = 1
+            while True:
+                meta, observations = fetch_indicator_page(
+                    session, chunk, indicators, date_range, page
+                )
+                all_obs.extend(observations)
+                if page >= meta.pages:
+                    break
+                page += 1
+                time.sleep(_INTER_REQUEST_DELAY)
+        except WorldBankAPIError as exc:
+            logger.warning(
+                "Lote de países %s omitido tras agotar reintentos (se completará "
+                "en la próxima corrida, la carga es idempotente): %s",
+                chunk,
+                exc,
             )
-            all_obs.extend(observations)
-            if page >= meta.pages:
-                break
-            page += 1
+            failed_chunks.append(chunk)
+
+    if failed_chunks:
+        skipped = sum(len(c) for c in failed_chunks)
+        logger.warning(
+            "%d de %d lotes fallaron (%d países omitidos): %s",
+            len(failed_chunks),
+            len(chunks),
+            skipped,
+            failed_chunks,
+        )
 
     logger.info(
-        "Extraídas %d observaciones (%d países, %d indicadores).",
+        "Extraídas %d observaciones (%d países solicitados, %d indicadores).",
         len(all_obs),
         len(iso3_codes),
         len(indicators),
